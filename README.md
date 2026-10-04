@@ -24,11 +24,11 @@ OmaPiHole is an independent third-party project and is not affiliated with or en
 - `curl` and `secret-tool` (`libsecret`) plus an available Secret Service keyring for authenticated instances. `curl` is required for all API requests.
 - Development tests require Node.js and Python 3; these are not plugin runtime dependencies.
 
-The release hardening changes have automated regression coverage. The runtime scenarios still pending are listed in [development notes](docs/DEVELOPMENT.md); a previous real-instance test does not validate every new change.
+The v0.1.0 release has automated regression coverage and was manually validated on Omarchy 4.0.4 / Quickshell 0.3.1 against a real Pi-hole v6, including HTTPS with a custom CA and Pi-hole Application Password authentication through Secret Service. Remaining limitations and validation notes are documented in [development notes](docs/DEVELOPMENT.md).
 
 ## Installation
 
-Once the repository is publicly accessible:
+Install from the public GitHub repository:
 
 ```bash
 omarchy plugin add https://github.com/danielfuentespl/omarchy-pihole.git --enable
@@ -106,7 +106,7 @@ Removing the plugin does **not** automatically remove the Application Password f
 - **OFFLINE:** check DNS, routing and Pi-hole availability. Common curl DNS, connection, timeout and certificate-verification failures are distinguished.
 - **ERROR:** an HTTP failure or malformed/unexpected API response was received. Check compatibility with Pi-hole v6.
 - **STALE / Previous data:** displayed metrics are old; inspect the error and last update time.
-- After QML development edits, a shell restart may be needed if the installed shell does not reload the service. Disable/enable and multi-monitor lifecycle remain part of the runtime validation checklist.
+- After QML development edits, a shell restart may be needed if the installed shell does not reload the service. Multi-monitor lifecycle remains part of ongoing validation.
 
 ## Security
 
