@@ -48,6 +48,7 @@ assert.strictEqual(Model.healthFor(true, false, ''), 'ok')
 assert.strictEqual(Model.healthFor(false, false, ''), 'warning')
 assert.strictEqual(Model.healthFor(true, true, ''), 'stale')
 assert.strictEqual(Model.healthFor(true, false, 'network'), 'offline')
+assert.strictEqual(Model.healthFor(true, false, 'tls'), 'offline')
 assert.strictEqual(Model.healthFor(true, false, 'auth'), 'auth')
 
 for (const url of ['', 'https://', 'ftp://example.org', 'https://u:p@example.org',

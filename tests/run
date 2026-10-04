@@ -2,5 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node tests/model.test.js
+node tests/curl-config.test.js
 node tests/service.test.js
 python3 tests/manifest.test.py
+python3 tests/curl-redirect.integration.py

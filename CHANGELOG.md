@@ -4,12 +4,15 @@
 
 ### Security and robustness
 
-- Bind requests and secret lookups to a captured origin and configuration generation; discard late results after URL/Secret ID changes.
-- Bound Secret Service lookup time, release lookup collectors, and never use secret output as an error message.
+- Bind requests and keyring lookups to the captured origin, Secret ID, CA path and configuration generation; discard late results after a configuration change.
+- Replace QML XMLHttpRequest with a curl Process that receives its configuration through stdin, never follows redirects, and retains normal TLS verification.
+- Restore Pi-hole v6 Application Password and SID authentication over HTTPS; refuse to send credentials over HTTP.
+- Support an optional PEM CA bundle and map reliable curl DNS, connection, timeout and TLS errors to concise states.
 - Validate origin-only URLs and required Pi-hole response fields strictly.
 - Show unknown metrics before a successful refresh and label retained data after failures.
 - Add service regression coverage and pin CI actions with minimal permissions.
 - Document public installation, lifecycle, transport security, asset provenance and validation limits.
+- Defer reverse-proxy Basic Auth; preserve unauthenticated HTTP and authenticated HTTPS support.
 
 ### Added
 
@@ -20,6 +23,6 @@
 - Initial OmaPiHole plugin scaffold.
 - Omarchy service + bar-widget architecture.
 - Pi-hole v6 summary and blocking-state polling.
-- Session authentication with application-password lookup from Secret Service.
+- Secret Service Application Password lookup and authenticated Pi-hole v6 session polling.
 - Timeout, offline, auth, configuration and stale states.
 - Pure-JS model and fixtures.

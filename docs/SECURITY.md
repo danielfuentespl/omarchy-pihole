@@ -4,29 +4,24 @@ OmaPiHole runs inside the Omarchy/Quickshell process with the desktop user's pri
 
 ## Configuration and origin isolation
 
-Every API cycle captures its origin, Secret ID and generation. Changing URL or Secret ID invalidates callbacks, aborts the old XHR, stops/destroys the lookup process and clears SID, sensitive references and cached data. Each callback also compares against current settings, even before QML configuration-change handling completes. Ordinary polling-setting changes preserve the current session.
-
-A Secret ID selects a user-managed keyring entry. If the user deliberately configures another server with the same ID, a fresh authentication attempt uses that selected entry. Use separate Secret IDs for different servers. The isolation guarantee concerns stale/in-flight operations, not a misconfigured credential choice.
+Each operation captures its configuration generation, normalized origin, Secret ID and CA path. Changing any of these cancels the curl process/keyring lookup, discards its callback, clears the SID and releases secret references.
 
 ## Secrets
 
-- The plugin does not write passwords or SIDs to its own files, settings or logs.
-- Secret Service may persist the password in its own keyring. Uninstalling the plugin does not erase that entry.
-- Password input is hidden and passed to `secret-tool store` on stdin. Lookup arguments contain only namespace and Secret ID.
-- Lookup stdout is a secret channel, never an error-message fallback. Neither stdout nor stderr is displayed or logged by the plugin.
-- Short-lived lookup collectors are destroyed after use. Password references are cleared; this is not a guarantee of secure/cryptographic erasure of JavaScript or Qt strings.
-- The SID is kept in process memory and sent in the `X-FTL-SID` header, not in URLs.
-- Session expiry is handled by one reauthentication attempt per refresh cycle. Unused server sessions expire normally; v0.1 does not implement explicit logout.
+- The Pi-hole Application Password is retrieved from Secret Service only after an HTTPS API request returns 401. The keyring may persist it; removing the plugin does not delete the keyring entry.
+- Passwords and SIDs are passed to curl through its stdin configuration, never argv, environment variables or temporary files. The helper stores the value in Secret Service via stdin and contains no password itself.
+- The plugin does not write credentials or SIDs to its own files or logs. Process arguments contain only `curl -q --config -` and `secret-tool` lookup metadata. QML strings and stdio buffers are released after use; cryptographic memory erasure is not promised.
+- Reverse-proxy Basic Auth is not implemented in v0.1.0.
 
 ## Network
 
-HTTP does not encrypt the application password, SID or statistics. Prefer HTTPS. HTTPS requires a trusted certificate chain and matching hostname under normal Qt/system certificate validation. There is no TLS bypass, `verifyTls=false` or insecure curl option.
+HTTP does not encrypt API traffic. Unauthenticated instances may use HTTP. If the API requires credentials, the plugin refuses to retrieve or send them over HTTP. HTTPS requires a trusted chain and matching hostname under curl's normal certificate verification. An optional public PEM CA bundle can be selected per plugin; otherwise curl uses its normal CA store. There is no TLS bypass, `-k`, `--insecure`, or disabled verification option.
 
-Use the final origin directly. Redirect behavior and TLS rejection must be tested in the installed Qt/Quickshell build; the JavaScript test transport cannot validate those properties.
+API requests run `curl -q --config -`; the `-q` option is the first curl argument and suppresses `.curlrc`. The plugin never enables curl's location/redirect option, so 301, 302, 303, 307 and 308 responses are rejected before another request is made. A two-server loopback test verified the destination received zero requests even with a malicious `.curlrc` containing `location` and synthetic password, SID and Authorization headers on the original request.
 
-Both API requests and Secret Service lookup have timeouts. API response types and required fields are validated before publishing metrics. Error text is controlled and dynamic panel messages use plain text.
+Curl connect and total timeouts are set per request and also bounded by a QML watchdog; configuration changes terminate the old process. DNS (curl 6), connection failure (7), timeout (28), peer certificate verification (60) and unreadable custom CA (77) have controlled messages. API response framing separates status from JSON body before strict model validation. Error text is controlled and dynamic panel messages use plain text.
 
-v0.1 reads statistics and blocking status; the only POST creates an authentication session. It requests no root privileges and does not mutate Pi-hole settings.
+v0.1 reads statistics and blocking status and creates an API session only when required. It requests no root privileges and does not mutate Pi-hole settings.
 
 ## Release checks
 

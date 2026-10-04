@@ -13,7 +13,6 @@ Item {
 
     property bool refreshing: false
     property bool configured: false
-    property bool authenticated: false
     property bool blockingEnabled: false
     property bool stale: false
     property bool hasData: false
@@ -30,14 +29,15 @@ Item {
     property double clientsTotal: 0
     property double domainsBlocked: 0
 
+    property bool authenticated: false
     property string sid: ""
+    property bool _authRetried: false
+    property string _secretOutput: ""
 
     property var _pendingSummary: null
     property var _activeRequest: null
     property var _requestCallback: null
     property int _requestToken: 0
-    property bool _authRetried: false
-    property string _secretOutput: ""
     property int _generation: 0
     property string _configKey: ""
     property var _cycle: null
@@ -58,6 +58,7 @@ Item {
     readonly property var baseUrlResult: Model.normalizeBaseUrl(setting("baseUrl", ""))
     readonly property string baseUrl: baseUrlResult.ok ? baseUrlResult.value : ""
     readonly property string secretId: String(setting("secretId", "default") || "default").trim() || "default"
+    readonly property string caCertPath: String(setting("caCertPath", "") || "").trim()
     readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 60, 30, 3600)
     readonly property int staleAfterSec: intSetting("staleAfterSec", 180, 60, 7200)
     readonly property int requestTimeoutMs: intSetting("requestTimeoutMs", 5000, 1000, 30000)
@@ -71,7 +72,9 @@ Item {
 
     function configurationKey() {
         // Read settings directly: derived QML bindings may still be reevaluating.
-        return JSON.stringify([String(setting("baseUrl", "")), String(setting("secretId", "default") || "default").trim() || "default"])
+        return JSON.stringify([String(setting("baseUrl", "")),
+            String(setting("secretId", "default") || "default").trim() || "default",
+            String(setting("caCertPath", "") || "").trim()])
     }
 
     function current(cycle) {
@@ -83,18 +86,18 @@ Item {
         _requestToken += 1
         requestTimeout.stop()
         lookupTimeout.stop()
-        var xhr = _activeRequest
+        var token = _activeRequest
         _activeRequest = null
         _requestCallback = null
-        if (xhr) { try { xhr.abort() } catch (error) {} }
+        if (token !== null && token !== undefined) curlTransport.cancel(token)
         var lookup = _lookup
         _lookup = null
         if (lookup) {
+            lookup.cancelled = true
             lookup.running = false
             lookup.destroy()
         }
-        _secret = ""
-        _secretOutput = ""
+        _secret = _secretOutput = ""
         _cycle = null
         _pendingSummary = null
         refreshing = false
@@ -136,7 +139,7 @@ Item {
         }
 
         _cycle = { generation: _generation, key: _configKey, baseUrl: origin.value,
-            secretId: String(setting("secretId", "default") || "default").trim() || "default" }
+            secretId: secretId, caCertPath: caCertPath }
         configured = true
         refreshing = true
         lastError = ""
@@ -192,12 +195,14 @@ Item {
     function handleUnauthorized() {
         sid = ""
         authenticated = false
-
         if (_authRetried) {
             fail("auth", "Pi-hole authentication failed")
             return
         }
-
+        if (_cycle.baseUrl.indexOf("https://") !== 0) {
+            fail("auth", "Pi-hole credentials require HTTPS; configure an HTTPS base URL")
+            return
+        }
         _authRetried = true
         loadSecret()
     }
@@ -205,19 +210,18 @@ Item {
     function loadSecret() {
         if (!current(_cycle) || _lookup !== null) return
         _secretOutput = ""
-        _lookup = lookupComponent.createObject(root, { cycle: _cycle })
+        _lookup = lookupComponent.createObject(root, { cycle: _cycle, running: true })
         if (!_lookup) { fail("auth", "Could not start Secret Service lookup"); return }
         lookupTimeout.restart()
-        _lookup.running = true
     }
 
     function finishSecretLookup(lookup, exitCode, stdout) {
         if (lookup !== _lookup || !current(lookup.cycle)) return
         lookupTimeout.stop()
         _lookup = null
-        lookup.destroy() // Release the collector together with the process.
+        lookup.destroy()
         _secretOutput = ""
-        if (exitCode === 127) {
+        if (exitCode === 127 || exitCode === -2) {
             fail("config", "secret-tool is required for password-protected Pi-hole instances")
             return
         }
@@ -240,6 +244,7 @@ Item {
         var lookup = _lookup
         var valid = current(lookup.cycle)
         _lookup = null
+        lookup.cancelled = true
         lookup.running = false
         lookup.destroy()
         _secret = _secretOutput = ""
@@ -250,61 +255,56 @@ Item {
         var payload = { password: _secret }
         request("POST", "/api/auth", payload, function(status, body) {
             _secret = ""
-
             if (status === 200) {
                 var parsed = Model.parseAuth(body)
-                if (!parsed.ok) {
-                    fail("protocol", parsed.error)
-                    return
-                }
+                if (!parsed.ok) { fail("protocol", parsed.error); return }
                 sid = parsed.sid
                 authenticated = true
                 requestSummary()
                 return
             }
-
             if (status === 401) {
                 fail("auth", "Pi-hole rejected the stored application password")
                 return
             }
-
             failHttp(status, "Could not authenticate to Pi-hole")
         })
+        _secret = ""
     }
 
     function request(method, path, payload, callback) {
         if (!current(_cycle) || _activeRequest !== null) return false
         var cycle = _cycle
-
-        var xhr = new XMLHttpRequest()
         var token = ++_requestToken
-        _activeRequest = xhr
+        _activeRequest = token
         _requestCallback = callback
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE || token !== root._requestToken || !root.current(cycle)) return
-            root.completeRequest(token, Number(xhr.status || 0), String(xhr.responseText || ""))
-        }
-
-        try {
-            xhr.open(method, cycle.baseUrl + path)
-            xhr.setRequestHeader("Accept", "application/json")
-            if (sid) xhr.setRequestHeader("X-FTL-SID", sid)
-            if (payload !== null && payload !== undefined) xhr.setRequestHeader("Content-Type", "application/json")
-            requestTimeout.restart()
-            xhr.send(payload !== null && payload !== undefined ? JSON.stringify(payload) : null)
-        } catch (error) {
-            completeRequest(token, 0, "")
-        }
+        requestTimeout.restart()
+        var isAuthRequest = path === "/api/auth"
+        var accepted = curlTransport.start(token, {
+            url: cycle.baseUrl + path,
+            method: method,
+            body: payload === null || payload === undefined ? "" : JSON.stringify(payload),
+            sid: isAuthRequest ? "" : sid,
+            sensitive: isAuthRequest || (!isAuthRequest && sid !== ""),
+            caCertPath: cycle.caCertPath,
+            connectTimeoutSec: Math.min(5, requestTimeoutMs / 1000),
+            maxTimeSec: requestTimeoutMs / 1000
+        })
+        if (!accepted) completeRequest(token, 0, "", "config", "Could not start curl transport")
         return true
     }
 
-    function completeRequest(token, status, body) {
+    function completeRequest(token, status, body, transportErrorKind, transportErrorMessage) {
         if (token !== _requestToken || !current(_cycle)) return
         requestTimeout.stop()
         _activeRequest = null
         var callback = _requestCallback
         _requestCallback = null
+        if (transportErrorKind) { fail(transportErrorKind, transportErrorMessage); return }
+        if (status >= 300 && status < 400) {
+            fail("http", "Redirect refused. Configure the canonical Pi-hole URL.")
+            return
+        }
         if (typeof callback === "function") callback(status, body)
     }
 
@@ -325,7 +325,6 @@ Item {
         refreshing = false
         errorKind = String(kind || "error")
         lastError = concise(message, "Pi-hole request failed")
-        if (kind === "auth") authenticated = false
         stale = lastUpdated instanceof Date && lastUpdated.getTime() > 0
         health = Model.healthFor(blockingEnabled, stale, errorKind)
     }
@@ -394,12 +393,11 @@ Item {
     function requestTimedOut() {
         if (_activeRequest === null) return
         var valid = current(_cycle)
-        var xhr = _activeRequest
+        var token = _activeRequest
         _requestToken += 1
         _activeRequest = null
         _requestCallback = null
-        _secret = _secretOutput = ""
-        try { xhr.abort() } catch (error) {}
+        curlTransport.cancel(token)
         if (valid) fail("timeout", "Pi-hole API request timed out after " + requestTimeoutMs + " ms")
     }
 
@@ -410,20 +408,39 @@ Item {
         onTriggered: root.lookupTimedOut()
     }
 
+    CurlTransport {
+        id: curlTransport
+        onCompleted: function(requestId, curlExitCode, httpStatus, body, transportErrorKind, transportErrorMessage) {
+            if (curlExitCode === 127 || curlExitCode === -2) {
+                root.completeRequest(requestId, 0, "", "config", "curl is required by OmaPiHole")
+            } else {
+                root.completeRequest(requestId, httpStatus, body, transportErrorKind, transportErrorMessage)
+            }
+        }
+    }
+
     Component {
         id: lookupComponent
         Process {
             id: lookupProcess
             property var cycle
-            command: ["bash", "-c",
-                "command -v secret-tool >/dev/null 2>&1 || exit 127; exec secret-tool lookup application omaops-pihole instance \"$1\"",
-                "oma-pihole-secret", cycle.secretId]
+            property bool didStart: false
+            property bool cancelled: false
+            command: ["secret-tool", "lookup", "application", "omaops-pihole", "instance", cycle.secretId]
             stdout: StdioCollector { id: output; waitForEnd: true }
-            // Never forward stdout/stderr to the UI or logs.
             stderr: StdioCollector { waitForEnd: true }
+            onStarted: didStart = true
+            onRunningChanged: {
+                if (!running && !didStart && !cancelled) Qt.callLater(function() {
+                    root.finishSecretLookup(lookupProcess, -2, "")
+                })
+                else if (!running && !didStart && cancelled) lookupProcess.destroy()
+            }
             onExited: function(exitCode) {
                 root.finishSecretLookup(lookupProcess, exitCode, output.text)
             }
         }
     }
+
+
 }

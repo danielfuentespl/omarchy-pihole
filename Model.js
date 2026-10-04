@@ -144,7 +144,7 @@ function parseAuth(text) {
 function healthFor(blockingEnabled, stale, errorKind) {
     if (errorKind === "config") return "config"
     if (errorKind === "auth") return "auth"
-    if (errorKind === "network" || errorKind === "timeout") return "offline"
+    if (errorKind === "network" || errorKind === "timeout" || errorKind === "tls") return "offline"
     if (errorKind) return "critical"
     if (stale) return "stale"
     return blockingEnabled ? "ok" : "warning"

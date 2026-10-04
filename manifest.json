@@ -26,7 +26,8 @@
       "refreshIntervalSec": 60,
       "staleAfterSec": 180,
       "requestTimeoutMs": 5000,
-      "secretId": "default"
+      "secretId": "default",
+      "caCertPath": ""
     },
     "schema": [
       {
@@ -65,8 +66,14 @@
       {
         "key": "secretId",
         "type": "string",
-        "label": "Secret ID",
+        "label": "Pi-hole application password Secret ID",
         "defaultValue": "default"
+      },
+      {
+        "key": "caCertPath",
+        "type": "string",
+        "label": "Optional custom CA certificate file (PEM)",
+        "defaultValue": ""
       }
     ]
   }

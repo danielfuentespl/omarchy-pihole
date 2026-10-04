@@ -1,6 +1,6 @@
 # OmaPiHole
 
-Read-only Pi-hole v6 status for the Omarchy bar. Part of the provisional **OmaOps** plugin family.
+Read-only Pi-hole v6 status for the Omarchy bar. Part of the **OmaOps** plugin family.
 
 **Version: 0.1.0** · Maintainer: [danielfuentespl](https://github.com/danielfuentespl)
 
@@ -13,14 +13,15 @@ OmaPiHole is an independent third-party project and is not affiliated with or en
 - Native bar icon and panel with Pi-hole health and DNS blocking status.
 - Queries, blocked queries, blocked percentage, active clients and gravity domains.
 - Shared polling service for multiple bars; no enable/disable-blocking action.
-- Optional application-password authentication using Secret Service and an in-memory SID.
+- Pi-hole v6 Application Password authentication through Secret Service.
+- Read-only access to the Pi-hole API; API requests never follow redirects.
 - Configuration, authentication, network, timeout and stale-data states.
 
 ## Requirements
 
 - Plugin-capable Omarchy Quattro. The maintainer's original manual test used Omarchy 4.0.4 and Quickshell 0.3.1 with a real Pi-hole v6.
 - Pi-hole v6; Pi-hole v5 is not supported.
-- For authenticated APIs: `secret-tool` (Arch package `libsecret`) and an available, unlocked Secret Service keyring in the desktop user session.
+- `curl` and `secret-tool` (`libsecret`) plus an available Secret Service keyring for authenticated instances. `curl` is required for all API requests.
 - Development tests require Node.js and Python 3; these are not plugin runtime dependencies.
 
 The release hardening changes have automated regression coverage. The runtime scenarios still pending are listed in [development notes](docs/DEVELOPMENT.md); a previous real-instance test does not validate every new change.
@@ -50,41 +51,36 @@ An optional port and one trailing slash are accepted. Do **not** include `/admin
 | baseUrl | empty | Pi-hole origin |
 | refreshIntervalSec | 60 | Poll interval, 30–3600 seconds |
 | staleAfterSec | 180 | Data age threshold, 60–7200 seconds |
-| requestTimeoutMs | 5000 | Timeout for each API request and Secret Service lookup, 1000–30000 ms |
-| secretId | default | Keyring entry identifier |
+| requestTimeoutMs | 5000 | Total timeout for each API request and keyring lookup, 1000–30000 ms |
+| secretId | default | Secret Service entry ID for the Pi-hole Application Password |
+| caCertPath | empty | Optional absolute path to a PEM CA bundle; uses this bundle for TLS verification |
 
 Keep the stale threshold above your polling interval unless you intentionally want stale indications between polls.
 
 ### HTTP and HTTPS
 
-HTTP does not encrypt API traffic, the application password or the SID. Prefer HTTPS, especially when authentication is enabled.
+HTTP does not encrypt API statistics. Pi-hole without API authentication may use HTTP. If a request returns 401, OmaPiHole refuses to retrieve or send credentials over HTTP; configure HTTPS instead.
 
-HTTPS requires a certificate trusted by Qt/system trust and valid for the configured hostname. For a private CA, install its trust chain through the normal system mechanism. Certificate verification is never disabled: there is no TLS bypass or insecure option. Configure the final origin directly, without relying on redirects.
+HTTPS requires a certificate trusted by curl's normal CA store and valid for the configured hostname. A private CA or self-signed certificate can be trusted by the operating system using its normal certificate-management mechanism. Alternatively, set **Custom CA certificate file** to an absolute PEM CA-bundle path; when set, curl uses that bundle to verify the peer. No trust store is modified or certificate installed by OmaPiHole. Certificate verification is never disabled.
 
 ### Authentication
 
-If the Pi-hole API allows unauthenticated access, no password or Secret Service is needed. Otherwise, create an **application password** in the Pi-hole web interface's settings, then run the helper from the installed plugin directory:
+Pi-hole v6 uses an **Application Password** in `POST /api/auth`, then a session ID in `X-FTL-SID`. OmaPiHole retrieves the Application Password only after a 401, using **Secret ID** to select its Secret Service entry. From the installed plugin directory, run:
 
 ```bash
 cd ~/.config/omarchy/plugins/com.blogvirtualizado.omaops.pihole
 ./scripts/store-secret
 ```
 
-The prompt hides your input. The default **Secret ID** is `default`. To select another entry:
+The helper prompts without echo and sends the value to Secret Service on stdin. It contains no password itself. Choose another keyring entry with `./scripts/store-secret secondary` and set the widget's **Secret ID** to the same value. Use HTTPS for authenticated Pi-hole instances. The password is not in plugin settings, `manifest.json`, argv, environment variables or plugin files. Secret Service persists it in the user's keyring until that entry is removed. JavaScript/Qt strings are released after use; cryptographic memory erasure is not promised.
 
-```bash
-./scripts/store-secret secondary
-```
-
-Set **Secret ID** to the same value in the widget settings. Use a separate entry for each server. Changing the URL does not automatically choose another stored password.
-
-The plugin first tries the read endpoint, retrieves the password only after HTTP 401, then calls `POST /api/auth`. It reuses the returned SID in `X-FTL-SID` until rejected. It never changes DNS blocking or Pi-hole configuration.
+OmaPiHole NEVER follows HTTP redirects for API requests that could contain credentials. Any 3xx response fails with “Redirect refused. Configure the canonical Pi-hole URL.” Configure the canonical Pi-hole origin directly. Pi-hole Application Password is distinct from reverse-proxy Basic Auth; proxy Basic Auth is not supported in v0.1.0.
 
 ## Panel
 
 Click the bar icon to open the panel. **Refresh** or **R** requests new data; **Open Pi-hole** opens the configured origin's `/admin/` page. Refresh is temporarily unavailable while a cycle runs.
 
-Metrics are `—` and blocking is `UNKNOWN` until a complete valid response is available. On subsequent failure, previous metrics remain visible with **Previous data** and their last update time. Changing the server or Secret ID discards those metrics.
+Metrics are `—` and blocking is `UNKNOWN` until a complete valid response is available. On subsequent failure, previous metrics remain visible with **Previous data** and their last update time. Changing the server discards those metrics.
 
 Queries and blocking metrics come from `/api/stats/summary` (the current statistics window, normally the last 24 hours), not the long-term database endpoint. Active clients are those seen in the last 24 hours; gravity domains are the current gravity-list count.
 
@@ -99,30 +95,22 @@ omarchy plugin enable com.blogvirtualizado.omaops.pihole
 omarchy plugin remove com.blogvirtualizado.omaops.pihole
 ```
 
-Removing the plugin does **not** automatically delete the application password from Secret Service. To remove the default entry deliberately:
-
-```bash
-secret-tool clear application omaops-pihole instance default
-```
-
-Replace `default` with the Secret ID you used. Revocation of an application password is managed in Pi-hole.
+Removing the plugin does **not** automatically remove the Application Password from Secret Service. To remove an entry deliberately, run `secret-tool clear application omaops-pihole instance default`, replacing `default` with the Secret ID. Revocation of an Application Password is managed in Pi-hole.
 
 ## Troubleshooting
 
 - **NOT CONFIGURED:** supply an origin in the accepted format, without `/admin` or `/api`.
-- **AUTH REQUIRED:** check the application password, matching Secret ID and unlocked keyring. A second 401 ends the current cycle; the next refresh can retry.
-- **secret-tool is required:** install `libsecret` and ensure a Secret Service implementation is running in your user session.
-- **Secret Service lookup timed out:** unlock/check the keyring and refresh. The HTTP timeout setting also bounds the lookup.
-- **OFFLINE:** check DNS, routing, Pi-hole availability, certificate trust and hostname. A network or TLS error is not necessarily a Pi-hole outage.
+- **AUTH REQUIRED:** check the Application Password, Secret ID and unlocked keyring. Credentials require HTTPS.
+- **curl is required:** install curl; OmaPiHole does not install dependencies automatically.
+- **secret-tool is required:** install `libsecret` and ensure Secret Service is running in the user session.
+- **OFFLINE:** check DNS, routing and Pi-hole availability. Common curl DNS, connection, timeout and certificate-verification failures are distinguished.
 - **ERROR:** an HTTP failure or malformed/unexpected API response was received. Check compatibility with Pi-hole v6.
 - **STALE / Previous data:** displayed metrics are old; inspect the error and last update time.
 - After QML development edits, a shell restart may be needed if the installed shell does not reload the service. Disable/enable and multi-monitor lifecycle remain part of the runtime validation checklist.
 
 ## Security
 
-Operations are tied to a configuration generation and captured origin. Changing URL/Secret ID cancels pending work and invalidates its results and SID. Secret lookups and API requests have timeouts.
-
-The plugin does not write secrets to its own files, settings or logs. Secret Service may persist the password in its own keyring. Password references and lookup collectors are released after use; JavaScript/Qt does not provide a cryptographic string-erasure guarantee. The SID remains in process memory. See [security notes](docs/SECURITY.md).
+Operations are tied to a configuration generation, origin and Secret ID. Changing the URL, Secret ID or custom CA path cancels pending work and clears SID and secret references. See [security notes](docs/SECURITY.md).
 
 ## Development
 
@@ -132,6 +120,26 @@ omarchy plugin validate .
 ```
 
 The suite covers models, manifest and service functions with simulated transport/processes. It does not replace QML, TLS or real-instance runtime tests. See [validation status](docs/DEVELOPMENT.md).
+
+
+## Compatibility and transport support
+
+| Scenario | Support |
+| --- | --- |
+| Pi-hole without API auth | SUPPORTED |
+| Pi-hole Application Password | SUPPORTED |
+| HTTP without credentials | SUPPORTED |
+| HTTP with credentials | REJECTED |
+| HTTPS public CA | SUPPORTED |
+| HTTPS private CA trusted by OS | SUPPORTED |
+| Self-signed trusted by OS | SUPPORTED |
+| Custom CA file | SUPPORTED |
+| Untrusted certificate | REJECTED |
+| TLS bypass | NOT SUPPORTED |
+| Reverse proxy Basic Auth | NOT SUPPORTED |
+| mTLS | NOT SUPPORTED |
+
+The curl transport receives request configuration over stdin, uses `curl -q --config -`, and never enables redirect following. A loopback test covered 301, 302, 303, 307 and 308 with a malicious `~/.curlrc`; the redirect sink received zero requests. TLS verification remains enabled. See [development validation](docs/DEVELOPMENT.md) for automated and runtime coverage.
 
 ## License and icon
 

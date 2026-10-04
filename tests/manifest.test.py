@@ -13,6 +13,8 @@ assert "bar-widget" in manifest["kinds"]
 assert "service" in manifest["kinds"]
 assert (root / manifest["entryPoints"]["barWidget"]).is_file()
 assert (root / manifest["entryPoints"]["service"]).is_file()
+assert (root / "CurlTransport.qml").is_file()
+assert (root / "CurlConfig.js").is_file()
 assert manifest["version"] == "0.1.0"
 assert manifest["id"] == "com.blogvirtualizado.omaops.pihole"
 assert manifest["id"] in (root / "ServiceHost.js").read_text()
@@ -25,4 +27,15 @@ for field in manifest["barWidget"]["schema"]:
     assert default == field["defaultValue"]
     if field["type"] == "integer":
         assert isinstance(default, int) and field["min"] <= default <= field["max"]
+assert "proxyAuthEnabled" not in manifest["barWidget"]["defaults"]
+assert manifest["barWidget"]["defaults"]["secretId"] == "default"
+assert manifest["barWidget"]["defaults"]["caCertPath"] == ""
+service = (root / "Service.qml").read_text()
+transport = (root / "CurlTransport.qml").read_text()
+assert '"curl", "-q", "--config", "-"' in transport
+assert "location" not in transport.lower()
+assert "Authorization" not in service
+assert "X-FTL-SID" in (root / "CurlConfig.js").read_text()
+assert "api/auth" in service
+assert "ignoreSslErrors" not in service + transport
 print("Manifest tests: OK")
