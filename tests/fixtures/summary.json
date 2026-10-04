@@ -1,0 +1,18 @@
+{
+  "queries": {
+    "total": 125304,
+    "blocked": 18523,
+    "percent_blocked": 14.782,
+    "unique_domains": 3210,
+    "forwarded": 66210,
+    "cached": 40571
+  },
+  "clients": {
+    "active": 34,
+    "total": 40
+  },
+  "gravity": {
+    "domains_being_blocked": 234567
+  },
+  "took": 0.0006
+}

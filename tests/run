@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+node tests/model.test.js
+node tests/service.test.js
+python3 tests/manifest.test.py
