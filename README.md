@@ -1,12 +1,12 @@
-# OmaPiHole
+# OmaPiHole Monitor
 
 Read-only Pi-hole v6 status for the Omarchy bar. Part of the **OmaOps** plugin family.
 
 **Version: 0.1.0** · Maintainer: [danielfuentespl](https://github.com/danielfuentespl)
 
-OmaPiHole is an independent third-party project and is not affiliated with or endorsed by Pi-hole.
+OmaPiHole Monitor is an independent third-party project and is not affiliated with or endorsed by Pi-hole.
 
-![OmaPiHole running on Omarchy](./preview.png)
+![OmaPiHole Monitor running on Omarchy](./preview.png)
 
 ## Features
 
@@ -31,14 +31,14 @@ The v0.1.0 release has automated regression coverage and was manually validated 
 Install from the public GitHub repository:
 
 ```bash
-omarchy plugin add https://github.com/danielfuentespl/omarchy-pihole.git --enable
+omarchy plugin add https://github.com/danielfuentespl/omarchy-pihole-monitor.git --enable
 ```
 
 Choose the bar section when prompted. The plugin ID is `com.blogvirtualizado.omaops.pihole`.
 
 ## Configuration
 
-Open the bar/widget configuration in Omarchy and edit the OmaPiHole settings. Set **Pi-hole base URL** to the HTTP(S) origin of your instance, for example:
+Open the bar/widget configuration in Omarchy and edit the OmaPiHole Monitor settings. Set **Pi-hole base URL** to the HTTP(S) origin of your instance, for example:
 
 ```text
 https://pi.hole
@@ -59,13 +59,13 @@ Keep the stale threshold above your polling interval unless you intentionally wa
 
 ### HTTP and HTTPS
 
-HTTP does not encrypt API statistics. Pi-hole without API authentication may use HTTP. If a request returns 401, OmaPiHole refuses to retrieve or send credentials over HTTP; configure HTTPS instead.
+HTTP does not encrypt API statistics. Pi-hole without API authentication may use HTTP. If a request returns 401, OmaPiHole Monitor refuses to retrieve or send credentials over HTTP; configure HTTPS instead.
 
-HTTPS requires a certificate trusted by curl's normal CA store and valid for the configured hostname. A private CA or self-signed certificate can be trusted by the operating system using its normal certificate-management mechanism. Alternatively, set **Custom CA certificate file** to an absolute PEM CA-bundle path; when set, curl uses that bundle to verify the peer. No trust store is modified or certificate installed by OmaPiHole. Certificate verification is never disabled.
+HTTPS requires a certificate trusted by curl's normal CA store and valid for the configured hostname. A private CA or self-signed certificate can be trusted by the operating system using its normal certificate-management mechanism. Alternatively, set **Custom CA certificate file** to an absolute PEM CA-bundle path; when set, curl uses that bundle to verify the peer. No trust store is modified or certificate installed by OmaPiHole Monitor. Certificate verification is never disabled.
 
 ### Authentication
 
-Pi-hole v6 uses an **Application Password** in `POST /api/auth`, then a session ID in `X-FTL-SID`. OmaPiHole retrieves the Application Password only after a 401, using **Secret ID** to select its Secret Service entry. From the installed plugin directory, run:
+Pi-hole v6 uses an **Application Password** in `POST /api/auth`, then a session ID in `X-FTL-SID`. OmaPiHole Monitor retrieves the Application Password only after a 401, using **Secret ID** to select its Secret Service entry. From the installed plugin directory, run:
 
 ```bash
 cd ~/.config/omarchy/plugins/com.blogvirtualizado.omaops.pihole
@@ -74,7 +74,7 @@ cd ~/.config/omarchy/plugins/com.blogvirtualizado.omaops.pihole
 
 The helper prompts without echo and sends the value to Secret Service on stdin. It contains no password itself. Choose another keyring entry with `./scripts/store-secret secondary` and set the widget's **Secret ID** to the same value. Use HTTPS for authenticated Pi-hole instances. The password is not in plugin settings, `manifest.json`, argv, environment variables or plugin files. Secret Service persists it in the user's keyring until that entry is removed. JavaScript/Qt strings are released after use; cryptographic memory erasure is not promised.
 
-OmaPiHole NEVER follows HTTP redirects for API requests that could contain credentials. Any 3xx response fails with “Redirect refused. Configure the canonical Pi-hole URL.” Configure the canonical Pi-hole origin directly. Pi-hole Application Password is distinct from reverse-proxy Basic Auth; proxy Basic Auth is not supported in v0.1.0.
+OmaPiHole Monitor NEVER follows HTTP redirects for API requests that could contain credentials. Any 3xx response fails with “Redirect refused. Configure the canonical Pi-hole URL.” Configure the canonical Pi-hole origin directly. Pi-hole Application Password is distinct from reverse-proxy Basic Auth; proxy Basic Auth is not supported in v0.1.0.
 
 ## Panel
 
@@ -101,7 +101,7 @@ Removing the plugin does **not** automatically remove the Application Password f
 
 - **NOT CONFIGURED:** supply an origin in the accepted format, without `/admin` or `/api`.
 - **AUTH REQUIRED:** check the Application Password, Secret ID and unlocked keyring. Credentials require HTTPS.
-- **curl is required:** install curl; OmaPiHole does not install dependencies automatically.
+- **curl is required:** install curl; OmaPiHole Monitor does not install dependencies automatically.
 - **secret-tool is required:** install `libsecret` and ensure Secret Service is running in the user session.
 - **OFFLINE:** check DNS, routing and Pi-hole availability. Common curl DNS, connection, timeout and certificate-verification failures are distinguished.
 - **ERROR:** an HTTP failure or malformed/unexpected API response was received. Check compatibility with Pi-hole v6.

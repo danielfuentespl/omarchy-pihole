@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "com.blogvirtualizado.omaops.pihole",
-  "name": "OmaPiHole",
+  "name": "OmaPiHole Monitor",
   "version": "0.1.0",
   "author": "BlogVirtualizado / OmaOps",
   "license": "MIT",

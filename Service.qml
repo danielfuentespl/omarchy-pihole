@@ -412,7 +412,7 @@ Item {
         id: curlTransport
         onCompleted: function(requestId, curlExitCode, httpStatus, body, transportErrorKind, transportErrorMessage) {
             if (curlExitCode === 127 || curlExitCode === -2) {
-                root.completeRequest(requestId, 0, "", "config", "curl is required by OmaPiHole")
+                root.completeRequest(requestId, 0, "", "config", "curl is required by OmaPiHole Monitor")
             } else {
                 root.completeRequest(requestId, httpStatus, body, transportErrorKind, transportErrorMessage)
             }

@@ -1,4 +1,4 @@
-# OmaPiHole development
+# OmaPiHole Monitor development
 
 ## Architecture
 

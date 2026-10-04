@@ -8,4 +8,4 @@ Dashboard Icons also indexes externally hosted Simple Icons assets; it should no
 
 Pi-hole retains its name/logo trademark rights. The logo identifies the monitored product. See the [Pi-hole brand guidelines](https://pi-hole.net/trademark-rules-and-brand-guidelines/) and [third-party app guidelines](https://pi-hole.net/developing-apps-for-pi-hole/).
 
-OmaPiHole is an independent third-party project and is not affiliated with or endorsed by Pi-hole. Use of the asset does not imply official status or endorsement.
+OmaPiHole Monitor is an independent third-party project and is not affiliated with or endorsed by Pi-hole. Use of the asset does not imply official status or endorsement.

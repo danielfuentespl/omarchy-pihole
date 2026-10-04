@@ -1,6 +1,6 @@
 # Security notes
 
-OmaPiHole runs inside the Omarchy/Quickshell process with the desktop user's privileges. Plugins are trusted desktop code, not sandboxed applications.
+OmaPiHole Monitor runs inside the Omarchy/Quickshell process with the desktop user's privileges. Plugins are trusted desktop code, not sandboxed applications.
 
 ## Configuration and origin isolation
 

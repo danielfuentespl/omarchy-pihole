@@ -20,7 +20,7 @@
 - Native Omarchy panel with live Pi-hole statistics.
 - Open Pi-hole dashboard action.
 
-- Initial OmaPiHole plugin scaffold.
+- Initial OmaPiHole Monitor plugin scaffold.
 - Omarchy service + bar-widget architecture.
 - Pi-hole v6 summary and blocking-state polling.
 - Secret Service Application Password lookup and authenticated Pi-hole v6 session polling.

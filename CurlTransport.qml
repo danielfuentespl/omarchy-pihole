@@ -80,7 +80,7 @@ Item {
         if (_activeProcess === process) _activeProcess = null
         var requestId = process.requestId
         process.destroy()
-        root.completed(requestId, -2, 0, "", "config", "curl is required by OmaPiHole")
+        root.completed(requestId, -2, 0, "", "config", "curl is required by OmaPiHole Monitor")
     }
 
     Component {

@@ -75,7 +75,7 @@ function errorForExitCode(code) {
     if ([35, 51, 58, 59, 64, 66, 80, 82, 83, 90, 91].indexOf(code) !== -1) {
         return { kind: "tls", message: "TLS connection failed (curl error " + code + ")" }
     }
-    if (code === 127 || code === -2) return { kind: "config", message: "curl is required by OmaPiHole" }
+    if (code === 127 || code === -2) return { kind: "config", message: "curl is required by OmaPiHole Monitor" }
     return { kind: "network", message: "Network request failed (curl error " + code + ")" }
 }
 
