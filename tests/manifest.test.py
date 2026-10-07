@@ -15,7 +15,7 @@ assert (root / manifest["entryPoints"]["barWidget"]).is_file()
 assert (root / manifest["entryPoints"]["service"]).is_file()
 assert (root / "CurlTransport.qml").is_file()
 assert (root / "CurlConfig.js").is_file()
-assert manifest["version"] == "0.1.0"
+assert manifest["version"] == "0.2.0"
 assert manifest["id"] == "com.blogvirtualizado.omaops.pihole"
 assert manifest["id"] in (root / "ServiceHost.js").read_text()
 assert manifest["id"] in (root / "Panel.qml").read_text()
@@ -37,5 +37,10 @@ assert "location" not in transport.lower()
 assert "Authorization" not in service
 assert "X-FTL-SID" in (root / "CurlConfig.js").read_text()
 assert "api/auth" in service
+panel = (root / "Panel.qml").read_text()
+assert 'text: "Configure"' in panel
+assert 'text: "Save address"' in panel
+assert "Model.normalizeBaseUrl(urlInput.text)" in panel
+assert "bar.shell.updateEntryInline(moduleName, entry)" in panel
 assert "ignoreSslErrors" not in service + transport
 print("Manifest tests: OK")

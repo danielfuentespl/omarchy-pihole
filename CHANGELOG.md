@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-10-07
+
+- Add an in-panel Pi-hole address editor that saves through Omarchy's widget-settings API.
+- Open the editor automatically on first use when no Pi-hole address is configured.
+- Explain the expected URL format and HTTPS requirement beside the input.
+
 ## [0.1.0] - 2026-10-04
 
 ### Security and robustness

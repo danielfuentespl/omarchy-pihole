@@ -2,7 +2,7 @@
 
 Read-only Pi-hole v6 status for the Omarchy bar. Part of the **OmaOps** plugin family.
 
-**Version: 0.1.0** · Maintainer: [danielfuentespl](https://github.com/danielfuentespl)
+**Version: 0.2.0** · Maintainer: [danielfuentespl](https://github.com/danielfuentespl)
 
 OmaPiHole Monitor is an independent third-party project and is not affiliated with or endorsed by Pi-hole.
 
@@ -38,13 +38,15 @@ Choose the bar section when prompted. The plugin ID is `com.blogvirtualizado.oma
 
 ## Configuration
 
-Open the bar/widget configuration in Omarchy and edit the OmaPiHole Monitor settings. Set **Pi-hole base URL** to the HTTP(S) origin of your instance, for example:
+When the Pi-hole address is missing, the panel opens its configuration form automatically. To change it later, open the panel and press **Configure**. Enter the HTTP(S) address of your Pi-hole, for example:
 
 ```text
 https://pi.hole
 ```
 
 An optional port and one trailing slash are accepted. Do **not** include `/admin`, `/api`, any other path, username/password, query or fragment. IPv6 addresses must be enclosed in brackets. Credentials never belong in this setting.
+
+Press **Save address**. OmaPiHole stores the value in the widget's Omarchy settings and starts a refresh. Reopen **Configure** any time to change it.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |

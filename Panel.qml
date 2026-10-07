@@ -16,10 +16,13 @@ Panel {
     manageIpc: false
 
     property double nowMs: Date.now()
+    property bool configEditing: false
+    property string configMessage: ""
 
     QtObject {
         id: dummyService
         property var settings: ({})
+        property string baseUrl: ""
         property bool refreshing: false
         property bool configured: false
         property bool authenticated: false
@@ -62,7 +65,52 @@ Panel {
     onOpenedChanged: if (opened) {
         nowMs = Date.now()
         service.refreshIfStale()
+        if (!service.configured) beginConfigEditing()
+        else Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    }
+
+    function beginConfigEditing() {
+        configMessage = ""
+        configEditing = true
+        Qt.callLater(function() {
+            urlInput.text = service.baseUrl || ""
+            urlInput.forceActiveFocus()
+            urlInput.selectAll()
+        })
+    }
+
+    function cancelConfigEditing() {
+        configEditing = false
+        configMessage = ""
         Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    }
+
+    function saveBaseUrl() {
+        var normalized = Model.normalizeBaseUrl(urlInput.text)
+        if (!normalized.ok) {
+            configMessage = normalized.error
+            urlInput.forceActiveFocus()
+            return
+        }
+        if (!bar || !bar.shell || typeof bar.shell.updateEntryInline !== "function") {
+            configMessage = "This Omarchy version cannot save widget settings. Update Omarchy and try again."
+            return
+        }
+
+        var entry = { id: moduleName }
+        for (var key in settings) if (key !== "id") entry[key] = settings[key]
+        entry.baseUrl = normalized.value
+
+        var changed = bar.shell.updateEntryInline(moduleName, entry)
+        if (!changed && String(setting("baseUrl", "")) !== normalized.value) {
+            configMessage = "Could not save the Pi-hole address. Please try again."
+            return
+        }
+
+        settings = entry
+        configEditing = false
+        configMessage = ""
+        service.refresh()
     }
 
     Binding {
@@ -138,6 +186,7 @@ Panel {
         PanelKeyCatcher {
             id: keyCatcher
             anchors.fill: parent
+            blocked: root.configEditing && urlInput.activeFocus
             onCloseRequested: root.close()
             onTextKey: function(text) {
                 if (text === "r" || text === "R") service.refresh()
@@ -218,6 +267,103 @@ Panel {
                 opacity: 0.45
             }
 
+            ColumnLayout {
+                visible: root.configEditing
+                Layout.fillWidth: true
+                spacing: Style.space(6)
+
+                Text {
+                    text: "Pi-hole address"
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.space(10)
+                }
+
+                TextField {
+                    id: urlInput
+                    Layout.fillWidth: true
+                    placeholderText: "http://192.168.1.20 or https://pi.hole"
+                    foreground: root.foreground
+                    font.family: root.fontFamily
+                    onAccepted: root.saveBaseUrl()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Escape) {
+                            root.cancelConfigEditing()
+                            event.accepted = true
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: root.configMessage !== ""
+                    text: root.configMessage
+                    textFormat: Text.PlainText
+                    color: root.urgent
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.space(9)
+                    wrapMode: Text.Wrap
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Enter only the address, without /admin or /api. Passwords stay in Secret Service; authenticated Pi-hole needs HTTPS."
+                    color: Color.muted
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.space(9)
+                    wrapMode: Text.Wrap
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Style.space(8)
+
+                    Rectangle {
+                        implicitWidth: saveLabel.implicitWidth + Style.space(18)
+                        implicitHeight: saveLabel.implicitHeight + Style.space(10)
+                        radius: Style.space(4)
+                        color: saveTap.pressed ? root.foreground : "transparent"
+                        border.width: 1
+                        border.color: root.foreground
+
+                        Text {
+                            id: saveLabel
+                            anchors.centerIn: parent
+                            text: "Save address"
+                            color: saveTap.pressed ? root.background : root.foreground
+                            font.family: root.fontFamily
+                        }
+
+                        TapHandler {
+                            id: saveTap
+                            onTapped: root.saveBaseUrl()
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: cancelLabel.implicitWidth + Style.space(18)
+                        implicitHeight: cancelLabel.implicitHeight + Style.space(10)
+                        radius: Style.space(4)
+                        color: cancelTap.pressed ? root.foreground : "transparent"
+                        border.width: 1
+                        border.color: Color.muted
+
+                        Text {
+                            id: cancelLabel
+                            anchors.centerIn: parent
+                            text: "Cancel"
+                            color: cancelTap.pressed ? root.background : Color.muted
+                            font.family: root.fontFamily
+                        }
+
+                        TapHandler {
+                            id: cancelTap
+                            onTapped: root.cancelConfigEditing()
+                        }
+                    }
+                }
+            }
+
             Text {
                 Layout.fillWidth: true
                 visible: service.lastError !== ""
@@ -263,6 +409,29 @@ Panel {
                         id: refreshTap
                         enabled: !service.refreshing
                         onTapped: service.refresh()
+                    }
+                }
+
+                Rectangle {
+                    visible: !root.configEditing
+                    implicitWidth: configureLabel.implicitWidth + Style.space(18)
+                    implicitHeight: configureLabel.implicitHeight + Style.space(10)
+                    radius: Style.space(4)
+                    color: configureTap.pressed ? root.foreground : "transparent"
+                    border.width: 1
+                    border.color: root.foreground
+
+                    Text {
+                        id: configureLabel
+                        anchors.centerIn: parent
+                        text: "Configure"
+                        color: configureTap.pressed ? root.background : root.foreground
+                        font.family: root.fontFamily
+                    }
+
+                    TapHandler {
+                        id: configureTap
+                        onTapped: root.beginConfigEditing()
                     }
                 }
 

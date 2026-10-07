@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.blogvirtualizado.omaops.pihole",
   "name": "OmaPiHole Monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "BlogVirtualizado / OmaOps",
   "license": "MIT",
   "description": "Read-only Pi-hole v6 status and DNS blocking metrics for the Omarchy bar.",
